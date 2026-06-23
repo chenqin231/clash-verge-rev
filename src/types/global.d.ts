@@ -986,6 +986,15 @@ interface IVergeConfig {
   enable_hover_jump_navigator?: boolean
   hover_jump_navigator_delay?: number
   enable_external_controller?: boolean
+  // kcptun 加速插件（单上游）
+  enable_kcptun?: boolean
+  kcptun_local_port?: number
+  kcptun_remote_addr?: string
+  kcptun_key?: string
+  kcptun_crypt?: string
+  kcptun_mode?: string
+  kcptun_conn?: number
+  kcptun_extra_args?: string
 }
 
 interface IWebDavFile {

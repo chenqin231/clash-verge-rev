@@ -257,6 +257,32 @@ pub struct IVerge {
 
     /// 启用外部控制器
     pub enable_external_controller: Option<bool>,
+
+    // ===== kcptun 加速插件（单上游）=====
+    /// 是否启用 kcptun client
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enable_kcptun: Option<bool>,
+    /// kcptun 本地监听端口（mihomo 节点 server 指向 127.0.0.1:此端口）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kcptun_local_port: Option<u16>,
+    /// 远端 kcptun server 地址 host:port
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kcptun_remote_addr: Option<String>,
+    /// 预共享密钥（与 server 一致）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kcptun_key: Option<String>,
+    /// 加密方式（与 server 一致）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kcptun_crypt: Option<String>,
+    /// KCP 模式（与 server 一致）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kcptun_mode: Option<String>,
+    /// UDP 连接数
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kcptun_conn: Option<u32>,
+    /// 高级参数透传（空格分隔）
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kcptun_extra_args: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, Serialize)]
@@ -449,6 +475,11 @@ impl IVerge {
             enable_dns_settings: Some(false),
             home_cards: None,
             enable_external_controller: Some(false),
+            enable_kcptun: Some(false),
+            kcptun_local_port: Some(12948),
+            kcptun_crypt: Some("aes".into()),
+            kcptun_mode: Some("fast".into()),
+            kcptun_conn: Some(1),
             ..Self::default()
         }
     }
@@ -554,6 +585,15 @@ impl IVerge {
         patch!(enable_dns_settings);
         patch!(home_cards);
         patch!(enable_external_controller);
+
+        patch!(enable_kcptun);
+        patch!(kcptun_local_port);
+        patch!(kcptun_remote_addr);
+        patch!(kcptun_key);
+        patch!(kcptun_crypt);
+        patch!(kcptun_mode);
+        patch!(kcptun_conn);
+        patch!(kcptun_extra_args);
     }
 
     pub const fn get_singleton_port() -> u16 {

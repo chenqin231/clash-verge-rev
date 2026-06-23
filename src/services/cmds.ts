@@ -267,6 +267,19 @@ export async function patchVergeConfig(payload: IVergeConfig) {
   return invoke<void>('patch_verge_config', { payload })
 }
 
+// ===== kcptun 加速插件 =====
+export async function restartKcptun() {
+  return invoke<void>('restart_kcptun')
+}
+
+export async function stopKcptun() {
+  return invoke<void>('stop_kcptun')
+}
+
+export async function getKcptunRunning() {
+  return invoke<boolean>('get_kcptun_running')
+}
+
 export async function getSystemProxy() {
   return invoke<{
     enable: boolean

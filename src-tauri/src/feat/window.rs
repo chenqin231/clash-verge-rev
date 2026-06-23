@@ -140,14 +140,28 @@ pub async fn clean_async() -> bool {
         true
     });
 
+    // 停止 kcptun client（避免遗留孤儿进程）
+    let kcptun_task = tokio::task::spawn(async {
+        logging!(info, Type::System, "stop kcptun");
+        match timeout(Duration::from_secs(2), crate::core::KcptunManager::global().stop()).await {
+            Ok(()) => true,
+            Err(_) => {
+                logging!(warn, Type::Window, "Warning: 停止 kcptun 超时，继续退出");
+                false
+            }
+        }
+    });
+
     // 并行执行清理任务
-    let (proxy_result, core_result, dns_result) = tokio::join!(proxy_task, core_task, dns_task);
+    let (proxy_result, core_result, dns_result, kcptun_result) =
+        tokio::join!(proxy_task, core_task, dns_task, kcptun_task);
 
     let proxy_success = proxy_result.unwrap_or_default();
     let core_success = core_result.unwrap_or_default();
     let dns_success = dns_result.unwrap_or_default();
+    let kcptun_success = kcptun_result.unwrap_or_default();
 
-    let all_success = proxy_success && core_success && dns_success;
+    let all_success = proxy_success && core_success && dns_success && kcptun_success;
 
     logging!(
         info,

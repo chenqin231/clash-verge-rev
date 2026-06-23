@@ -748,6 +748,53 @@ const resolveUnSetDnsScript = () =>
   })
 
 // =======================
+// kcptun client sidecar（从本地源码交叉编译，纯 Go 无 CGO）
+// 源码默认在同级目录 ../kcptun，可用环境变量 KCPTUN_SRC 覆盖
+// =======================
+const KCPTUN_SRC = process.env.KCPTUN_SRC || path.resolve(cwd, '..', 'kcptun')
+const GO_OS_MAP = { win32: 'windows', darwin: 'darwin', linux: 'linux' }
+const GO_ARCH_MAP = {
+  x64: 'amd64',
+  ia32: '386',
+  arm64: 'arm64',
+  arm: 'arm',
+  riscv64: 'riscv64',
+  loong64: 'loong64',
+}
+
+async function resolveKcptun() {
+  const isWin = platform === 'win32'
+  const targetFile = `kcptun-client-${SIDECAR_HOST}${isWin ? '.exe' : ''}`
+  const sidecarPath = path.join(SIDECAR_DIR, targetFile)
+  await fsp.mkdir(SIDECAR_DIR, { recursive: true })
+
+  if (!FORCE && fs.existsSync(sidecarPath)) {
+    log_success(`"kcptun-client" already exists, skipping build`)
+    return
+  }
+
+  const goos = GO_OS_MAP[platform]
+  const goarch = GO_ARCH_MAP[arch]
+  if (!goos || !goarch) {
+    throw new Error(`kcptun: unsupported platform "${platform}-${arch}"`)
+  }
+  if (!fs.existsSync(path.join(KCPTUN_SRC, 'go.mod'))) {
+    throw new Error(
+      `kcptun source not found at ${KCPTUN_SRC} (set KCPTUN_SRC env to kcptun repo root)`,
+    )
+  }
+
+  log_info(`Building kcptun-client for ${goos}/${goarch} from ${KCPTUN_SRC} ...`)
+  execSync(`go build -mod=vendor -trimpath -ldflags "-s -w" -o "${sidecarPath}" ./client`, {
+    cwd: KCPTUN_SRC,
+    stdio: 'inherit',
+    env: { ...process.env, CGO_ENABLED: '0', GOOS: goos, GOARCH: goarch },
+  })
+  if (platform !== 'win32') execSync(`chmod 755 "${sidecarPath}"`)
+  log_success(`kcptun-client built: ${targetFile}`)
+}
+
+// =======================
 // Tasks
 // =======================
 const tasks = [
@@ -763,6 +810,7 @@ const tasks = [
       getLatestReleaseVersion().then(() => resolveSidecar(clashMeta())),
     retry: 5,
   },
+  { name: 'kcptun', func: resolveKcptun, retry: 1 },
   { name: 'plugin', func: resolvePlugin, retry: 5, winOnly: true },
   { name: 'service', func: resolveServiceBundle, retry: 5 },
   { name: 'mmdb', func: resolveMmdb, retry: 5 },
