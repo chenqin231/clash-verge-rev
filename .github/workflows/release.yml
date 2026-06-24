@@ -263,12 +263,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # fork 无 Apple 开发者证书:不传 APPLE_* env。否则空值的 APPLE_CERTIFICATE
+          # 会被 tauri 打包器判为 is_some()=true,触发 security import 空证书而失败。
+          # 不传 → macOS 走 ad-hoc 签名,产出未签名包(可正常运行,首次打开需右键打开)。
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Clash Verge Rev ${{ github.ref_name }}'
