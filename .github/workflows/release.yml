@@ -28,19 +28,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check if tag is from main branch
+      - name: Check if tag is from release branch
         run: |
           TAG_REF="${GITHUB_REF##*/}"
-          echo "Checking if tag $TAG_REF is from main branch..."
+          # fork 默认分支为 dev(无 main),从 dev 打 tag 触发发布
+          RELEASE_BRANCH="origin/dev"
+          echo "Checking if tag $TAG_REF is from $RELEASE_BRANCH..."
 
           TAG_COMMIT=$(git rev-list -n 1 $TAG_REF)
-          MAIN_COMMITS=$(git rev-list origin/main)
+          BRANCH_COMMITS=$(git rev-list "$RELEASE_BRANCH")
 
-          if echo "$MAIN_COMMITS" | grep -q "$TAG_COMMIT"; then
-            echo "✅ Tag $TAG_REF is from main branch"
+          if echo "$BRANCH_COMMITS" | grep -q "$TAG_COMMIT"; then
+            echo "✅ Tag $TAG_REF is from $RELEASE_BRANCH"
           else
-            echo "❌ Tag $TAG_REF is not from main branch"
-            echo "This release workflow only accepts tags from main branch."
+            echo "❌ Tag $TAG_REF is not from $RELEASE_BRANCH"
+            echo "This release workflow only accepts tags from the release branch."
             exit 1
           fi
 
@@ -66,7 +68,9 @@ jobs:
   update_tag:
     name: Update tag
     runs-on: ubuntu-latest
-    needs: [release, release-for-linux-arm, release-for-fixed-webview2]
+    # fork 上只依赖核心多平台 release job;linux-arm/webview2 为官方专属(下方 if 守护跳过),
+    # 不让它们的缺席阻塞核心包的 draft→published 发布。
+    needs: [release]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -212,6 +216,17 @@ jobs:
           echo "OPENSSL_LIB_DIR=$(brew --prefix openssl@3)/lib" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=$(brew --prefix openssl@3)/lib/pkgconfig" >> $GITHUB_ENV
 
+      - name: Setup Go (kcptun sidecar)
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Checkout kcptun (sidecar 源码)
+        uses: actions/checkout@v4
+        with:
+          repository: chenqin231/kcptun
+          path: kcptun-src
+
       - name: Install Node
         uses: actions/setup-node@v6
         with:
@@ -223,6 +238,9 @@ jobs:
           run_install: false
 
       - name: Pnpm install and check
+        # KCPTUN_SRC 让 prebuild 的 kcptun task 从 checkout 的源码交叉编译 client sidecar
+        env:
+          KCPTUN_SRC: ${{ github.workspace }}/kcptun-src
         run: |
           pnpm i
           pnpm run prebuild ${{ matrix.target }}
@@ -280,6 +298,8 @@ jobs:
 
   release-for-linux-arm:
     name: Release Build for Linux ARM
+    # 官方专属扩展构建;fork(chenqin231)上跳过,聚焦点名的 Win/Mac/Linux x64 目标
+    if: github.repository == 'clash-verge-rev/clash-verge-rev'
     needs: [check_tag_version]
     strategy:
       fail-fast: false
@@ -427,6 +447,8 @@ jobs:
 
   release-for-fixed-webview2:
     name: Release Build for Fixed WebView2
+    # 官方专属(内置 WebView2 变体);fork 上跳过
+    if: github.repository == 'clash-verge-rev/clash-verge-rev'
     needs: [check_tag_version]
     strategy:
       fail-fast: false
@@ -546,7 +568,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   release-update:
-    if: ${{ !contains(github.ref_name, '-rc') }}
+    if: ${{ !contains(github.ref_name, '-rc') && github.repository == 'clash-verge-rev/clash-verge-rev' }}
     name: Release Update
     runs-on: ubuntu-latest
     needs: [update_tag]
@@ -573,7 +595,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   release-update-for-fixed-webview2:
-    if: ${{ !contains(github.ref_name, '-rc') }}
+    if: ${{ !contains(github.ref_name, '-rc') && github.repository == 'clash-verge-rev/clash-verge-rev' }}
     runs-on: ubuntu-latest
     needs: [update_tag]
     steps:
@@ -599,7 +621,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   submit-to-winget:
-    if: ${{ !contains(github.ref_name, '-rc') }}
+    if: ${{ !contains(github.ref_name, '-rc') && github.repository == 'clash-verge-rev/clash-verge-rev' }}
     name: Submit to Winget
     runs-on: ubuntu-latest
     needs: [update_tag, release-update]
@@ -623,7 +645,7 @@ jobs:
           token: ${{ secrets.WINGET_TOKEN  }}
 
   notify-telegram:
-    if: ${{ !contains(github.ref_name, '-rc') }}
+    if: ${{ !contains(github.ref_name, '-rc') && github.repository == 'clash-verge-rev/clash-verge-rev' }}
     name: Notify Telegram
     runs-on: ubuntu-latest
     needs:
