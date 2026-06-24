@@ -161,6 +161,9 @@ jobs:
   release:
     name: Release Build
     needs: [check_tag_version]
+    # KCPTUN_SRC 设为 job 级,确保 prebuild 步骤与 tauri build(会二次触发 prebuild)都能定位 kcptun 源码
+    env:
+      KCPTUN_SRC: ${{ github.workspace }}/kcptun-src
     strategy:
       fail-fast: false
       matrix:
