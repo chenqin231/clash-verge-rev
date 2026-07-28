@@ -2,9 +2,10 @@ name: Auto Build
 
 on:
   workflow_dispatch:
-  schedule:
-    # UTC+8 12:00, 18:00 -> UTC 4:00, 10:00
-    - cron: '0 4,10 * * *'
+  # 已停用定时自动编译（fork 无需每日构建），仅保留手动触发。
+  # schedule:
+  #   # UTC+8 12:00, 18:00 -> UTC 4:00, 10:00
+  #   - cron: '0 4,10 * * *'
 permissions: write-all
 env:
   TAG_NAME: autobuild
